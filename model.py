@@ -16,7 +16,7 @@ class network(object):
 
     def _build_model(self, phase='train'): 
         if phase == 'train':
-            self.batch_train_images, self.batch_train_labels = self.build_input_batch_op(self.data_list_dir_train, batch_size = self.batch_size)
+            self.batch_train_images, self.batch_train_labels, self.num_train_images = self.build_input_batch_op(self.data_list_dir_train, batch_size = self.batch_size)
             # make the model
             self.model_train = convNet(self.batch_train_images, 10, 0.25, False, True)
         
@@ -24,7 +24,7 @@ class network(object):
             self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=self.model_train, labels=tf.cast(self.batch_train_labels, dtype=tf.int32)))
 
-        self.batch_test_images, self.batch_test_labels = self.build_input_batch_op(self.data_list_dir_test, batch_size = self.batch_size)
+        self.batch_test_images, self.batch_test_labels, self.num_test_images = self.build_input_batch_op(self.data_list_dir_test, batch_size = self.batch_size)
         self.model_test = convNet(self.batch_test_images, 10, 0.25, True, False)
         
         #accuracy
@@ -38,14 +38,15 @@ class network(object):
         """
         filenames = []
         labels = []
+        count = 0
         with open(image_list_file, 'rb') as csvfile:
             reader = csv.reader(csvfile, delimiter=',')
             for row in reader:
+                count += 1
                 filenames.append(row[0])
-                
                 labels.append(int(row[1]))
 
-        return filenames, labels
+        return filenames, labels, count
 
     @staticmethod
     def read_images_from_disk(input_queue):
@@ -62,7 +63,7 @@ class network(object):
         return example, label
 
     def build_input_batch_op(self, image_list_file, batch_size, num_epochs=None):
-        files_list, labels_list = network.read_labeled_image_list(image_list_file)
+        files_list, labels_list, num_images = network.read_labeled_image_list(image_list_file)
 
         images = tf.convert_to_tensor(files_list, dtype=tf.string)
         labels = tf.convert_to_tensor(labels_list, dtype=tf.int32)
@@ -81,7 +82,7 @@ class network(object):
         image_batch, label_batch = tf.train.batch([image, label],
                                           batch_size=batch_size)
 
-        return image_batch, label_batch
+        return image_batch, label_batch, num_images
 
     def train(self, args):
         """Train netowrk"""
@@ -102,84 +103,24 @@ class network(object):
 
         for epoch in range(args.epoch):
             print('Start epoch: {}'.format(epoch))
-            batch_idxs = args.num_sample
+            batch_idxs = self.num_train_images / self.batch_size
 
             for idx in range(0, batch_idxs):
 
                 # run update
-                loss, _ = self.sess.run([tf.reduce_sum(self.loss), self.optim])#,feed_dict={self.input_images : self.batch_images, \
-                                           #            self.input_labels : self.batch_labels,})
+                loss, _ = self.sess.run([tf.reduce_sum(self.loss), self.optim])
                 
                 counter += 1
                 print(("Epoch: [%2d] [%4d/%4d] time: %4.4f loss: %2.4f" \
                        % (epoch, idx, batch_idxs, time.time() - start_time, loss)))
 
             #run test
-            [test_loss] = self.sess.run([self.accuracy])
-            print(("Test loss: %1.5f") % test_loss)
+            batch_idxs = self.num_test_images / self.batch_size
+            acc = 0
+            for idx in range(0, batch_idxs):
+                acc += self.accuracy.eval()
+            print(("Accuracy: %1.5f") % (acc / idx))
           
-
-
         coord.request_stop()
         coord.join(stop_grace_period_secs=10)
 
-    # def test(self, args):
-    #     """Test cyclegan""" 
-    #     sample_op, sample_path,im_shape = self.build_input_image_op(self.dataset_dir,is_test=True,num_epochs=1)
-    #     sample_batch,path_batch,im_shapes = tf.train.batch([sample_op,sample_path,im_shape],batch_size=self.batch_size,num_threads=4,capacity=self.batch_size*50,allow_smaller_final_batch=True)
-    #     gen_name='generatorA2B' if args.which_direction=="AtoB" else 'generatorB2A'
-    #     cycle_image_batch = self.generator(sample_batch,self.options,name=gen_name)
-
-    #     #init everything
-    #     self.sess.run([tf.global_variables_initializer(),tf.local_variables_initializer()])
-
-    #     #start queue runners
-    #     coord = tf.train.Coordinator()
-    #     tf.train.start_queue_runners()
-    #     print('Thread running')
-
-    #     if self.load(args.checkpoint_dir):
-    #         print(" [*] Load SUCCESS")
-    #     else:
-    #         print(" [!] Load failed...")
-
-    #     # write html for visual comparison
-    #     if not os.path.exists(args.test_dir): #python 2 is dumb...
-    #         os.makedirs(args.test_dir)
-
-    #     index_path = os.path.join(args.test_dir, '{0}_index.html'.format(args.which_direction))
-    #     index = open(index_path, "w+")
-    #     index.write("<html><body><table><tr>")
-    #     index.write("<th>name</th><th>input</th><th>output</th></tr>")
-
-    #     print('Starting')
-    #     batch_num=0
-    #     while True:
-    #         try:
-    #             print('Processed images: {}'.format(batch_num*args.batch_size), end='\r')
-    #             fake_imgs,sample_images,sample_paths,im_sps = self.sess.run([cycle_image_batch,sample_batch,path_batch,im_shapes])
-    #             #iterate over each sample in the batch
-    #             for rr in range(fake_imgs.shape[0]):
-    #                 #create output destination
-    #                 dest_path = sample_paths[rr].decode('UTF-8').replace(self.dataset_dir,args.test_dir)
-    #                 parent_destination = os.path.abspath(os.path.join(dest_path, os.pardir))
-    #                 if not os.path.exists(parent_destination):
-    #                     os.makedirs(parent_destination)
-
-    #                 fake_img = ((fake_imgs[rr]+1)/2)*255
-    #                 im_sp = im_sps[rr]
-    #                 fake_img = misc.imresize(fake_img,(im_sp[0],im_sp[1]))
-    #                 misc.imsave(dest_path,fake_img)
-    #                 index.write("<td>%s</td>" % os.path.basename(sample_paths[rr].decode('UTF-8')))
-    #                 index.write("<td><img src='%s'></td>" % (sample_paths[rr].decode('UTF-8')))
-    #                 index.write("<td><img src='%s'></td>" % (dest_path))
-    #                 index.write("</tr>")
-    #             batch_num+=1
-    #         except Exception as e:
-    #             print(e)
-    #             break;
-
-    #     print('Elaboration complete')
-    #     index.close()
-    #     coord.request_stop()
-    #     coord.join(stop_grace_period_secs=10)

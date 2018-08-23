@@ -6,14 +6,12 @@ import tensorflow as tf
 from model import network
 
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('--data_list_dir_test', dest='data_list_dir_train', default='', help='path of the training dataset')
-parser.add_argument('--data_list_dir_train', dest='data_list_dir_test', default='', help='path of the testing dataset')
-
+parser.add_argument('--data_list_dir_train', dest='data_list_dir_train', default='', help='path of the training dataset')
+parser.add_argument('--data_list_dir_test', dest='data_list_dir_test', default='', help='path of the testing dataset')
 parser.add_argument('--phase', dest='phase', help='train, test', required=True, choices=['train','test'])
 
-
 parser.add_argument('--epoch', dest='epoch', type=int, default=5, help='# of epoch')
-parser.add_argument('--batch_size', dest='batch_size', type=int, default=32, help='# images in batch')
+parser.add_argument('--batch_size', dest='batch_size', type=int, default=128, help='# images in batch')
 parser.add_argument('--image_size', dest='image_size', type=int, default=28, help='Image sizes')
 parser.add_argument('--num_sample',dest='num_sample',type=int,default=60,help='number of sample to process for 1 epoch')
 parser.add_argument('--input_nc', dest='input_nc', type=int, default=3, help='# of input image channels')
