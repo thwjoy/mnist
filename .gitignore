@@ -1,1 +1,3 @@
-model.pyc module.pyc
+*.pyc
+data
+.*

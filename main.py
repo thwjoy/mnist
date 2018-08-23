@@ -1,0 +1,35 @@
+import argparse
+import os
+# import scipy.misc
+import numpy as np
+import tensorflow as tf
+from model import network
+
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('--data_list_dir_test', dest='data_list_dir_train', default='', help='path of the training dataset')
+parser.add_argument('--data_list_dir_train', dest='data_list_dir_test', default='', help='path of the testing dataset')
+
+parser.add_argument('--phase', dest='phase', help='train, test', required=True, choices=['train','test'])
+
+
+parser.add_argument('--epoch', dest='epoch', type=int, default=5, help='# of epoch')
+parser.add_argument('--batch_size', dest='batch_size', type=int, default=32, help='# images in batch')
+parser.add_argument('--image_size', dest='image_size', type=int, default=28, help='Image sizes')
+parser.add_argument('--num_sample',dest='num_sample',type=int,default=60,help='number of sample to process for 1 epoch')
+parser.add_argument('--input_nc', dest='input_nc', type=int, default=3, help='# of input image channels')
+parser.add_argument('--niter', dest='niter', type=int, default=200, help='# of iter at starting learning rate')
+parser.add_argument('--lr', dest='lr', type=float, default=0.0002, help='initial learning rate for adam')
+parser.add_argument('--beta1', dest='beta1', type=float, default=0.5, help='momentum term of adam')
+
+args = parser.parse_args()
+
+def main(_):
+    with tf.Session() as sess:
+        model = network(sess, args)
+        if args.phase == 'train':
+            model.train(args)
+        # else: 
+            # model.test(args)
+
+if __name__ == '__main__':
+    tf.app.run()
