@@ -12,10 +12,15 @@ class network(object):
         self.input_c_dim = args.input_nc
         self.data_list_dir_train = args.data_list_dir_train
         self.data_list_dir_test = args.data_list_dir_test
+        self.phase = args.phase
+        self.dataset_name = args.dataset_name
         self._build_model()
+        if self.phase == 'train':
+            self.saver = tf.train.Saver(max_to_keep=2)
 
-    def _build_model(self, phase='train'): 
-        if phase == 'train':
+
+    def _build_model(self): 
+        if self.phase == 'train':
             self.batch_train_images, self.batch_train_labels, self.num_train_images = self.build_input_batch_op(self.data_list_dir_train, batch_size = self.batch_size)
             # make the model
             self.model_train = convNet(self.batch_train_images, 10, 0.25, False, True)
@@ -97,6 +102,11 @@ class network(object):
         counter = 0
         start_time = time.time()
 
+        if self.load(args.checkpoint_dir):
+            print("Succesfully loaded prior checkpoint")
+        else:
+            print("FAILED to load prior checkpoint")
+
         coord = tf.train.Coordinator()
         tf.train.start_queue_runners()
         print('Thread running')
@@ -120,7 +130,60 @@ class network(object):
             for idx in range(0, batch_idxs):
                 acc += self.accuracy.eval()
             print(("Accuracy: %1.5f") % (acc / idx))
+
+            #save the model               
+            self.save(args.checkpoint_dir, counter)
           
         coord.request_stop()
         coord.join(stop_grace_period_secs=10)
 
+    def save(self, checkpoint_dir, step):
+        model_name = "%s_%s" % (self.dataset_name, self.image_size)
+
+        self.saver.save(self.sess,
+                        os.path.join(checkpoint_dir, model_name),
+                        global_step=step)
+
+    def load(self, checkpoint_dir):
+        def get_var_to_restore_list(ckpt_path, mask=[], prefix=""):
+            """
+            Get all the variable defined in a ckpt file and add them to the returned var_to_restore list. Allows for partially defined model to be restored fomr ckpt files.
+            Args:
+                ckpt_path: path to the ckpt model to be restored
+                mask: list of layers to skip
+                prefix: prefix string before the actual layer name in the graph definition
+            """
+            variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+            variables_dict = {}
+            for v in variables:
+                name = v.name[:-2]
+                skip=False
+                #check for skip
+                for m in mask:
+                    if m in name:
+                        skip=True
+                        continue
+                if not skip:
+                    variables_dict[v.name[:-2]] = v
+            #print(variables_dict)
+            reader = tf.train.NewCheckpointReader(ckpt_path)
+            var_to_shape_map = reader.get_variable_to_shape_map()
+            var_to_restore = {}
+            for key in var_to_shape_map:
+                #print(key)
+                if prefix+key in variables_dict.keys():
+                    var_to_restore[key] = variables_dict[prefix+key]
+            return var_to_restore
+
+        print("Reading checkpoint")
+
+        ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+        if ckpt and ckpt.model_checkpoint_path:
+            savvy = tf.train.Saver(var_list=get_var_to_restore_list(ckpt.model_checkpoint_path))
+            savvy.restore(self.sess, ckpt.model_checkpoint_path)
+            return True
+        else:
+            return False
+
+    def test(self, args):
+        print 'not implemented'

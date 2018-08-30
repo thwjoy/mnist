@@ -18,6 +18,9 @@ parser.add_argument('--input_nc', dest='input_nc', type=int, default=3, help='# 
 parser.add_argument('--niter', dest='niter', type=int, default=200, help='# of iter at starting learning rate')
 parser.add_argument('--lr', dest='lr', type=float, default=0.0002, help='initial learning rate for adam')
 parser.add_argument('--beta1', dest='beta1', type=float, default=0.5, help='momentum term of adam')
+parser.add_argument('--checkpoint', dest='checkpoint_dir', default='./data/ckpt', help='path to checkpoint folber for weights and tensorboard')
+parser.add_argument('--dataset', dest='dataset_name', default='MNIST', help='dataset for which the weights are to be trained')
+
 
 args = parser.parse_args()
 
@@ -26,8 +29,8 @@ def main(_):
         model = network(sess, args)
         if args.phase == 'train':
             model.train(args)
-        # else: 
-            # model.test(args)
+        else: 
+            model.test(args)
 
 if __name__ == '__main__':
     tf.app.run()
