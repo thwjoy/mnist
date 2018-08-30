@@ -95,9 +95,16 @@ class network(object):
         #optimiser
         self.optim = tf.train.AdamOptimizer(args.lr, beta1=args.beta1).minimize(self.loss)
 
+        #summaries
+        tf.summary.image("Input", self.batch_train_images)
+        tf.summary.scalar('loss', self.loss)
+
         
         init_op = [tf.global_variables_initializer(),tf.local_variables_initializer()]
         self.sess.run(init_op)
+
+        self.writer = tf.summary.FileWriter(args.checkpoint_dir)
+        summary_op = tf.summary.merge_all()
 
         counter = 0
         start_time = time.time()
@@ -120,9 +127,14 @@ class network(object):
                 # run update
                 loss, _ = self.sess.run([tf.reduce_sum(self.loss), self.optim])
                 
+                
                 counter += 1
                 print(("Epoch: [%2d] [%4d/%4d] time: %4.4f loss: %2.4f" \
                        % (epoch, idx, batch_idxs, time.time() - start_time, loss)))
+                
+                if counter % 10 == 1:
+                    summary_string = self.sess.run(summary_op)#,feed_dict={self.fake_A_sample:fake_A,self.fake_B_sample:fake_B})
+                    self.writer.add_summary(summary_string,counter)
 
             #run test
             batch_idxs = self.num_test_images / self.batch_size

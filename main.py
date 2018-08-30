@@ -11,7 +11,7 @@ parser.add_argument('--data_list_dir_test', dest='data_list_dir_test', default='
 parser.add_argument('--phase', dest='phase', help='train, test', required=True, choices=['train','test'])
 
 parser.add_argument('--epoch', dest='epoch', type=int, default=5, help='# of epoch')
-parser.add_argument('--batch_size', dest='batch_size', type=int, default=128, help='# images in batch')
+parser.add_argument('--batch_size', dest='batch_size', type=int, default=512, help='# images in batch')
 parser.add_argument('--image_size', dest='image_size', type=int, default=28, help='Image sizes')
 parser.add_argument('--num_sample',dest='num_sample',type=int,default=60,help='number of sample to process for 1 epoch')
 parser.add_argument('--input_nc', dest='input_nc', type=int, default=3, help='# of input image channels')
@@ -25,7 +25,10 @@ parser.add_argument('--dataset', dest='dataset_name', default='MNIST', help='dat
 args = parser.parse_args()
 
 def main(_):
-    with tf.Session() as sess:
+    config = tf.ConfigProto(
+        device_count = {'GPU': 0}
+    )
+    with tf.Session(config=config) as sess:
         model = network(sess, args)
         if args.phase == 'train':
             model.train(args)
